@@ -2,90 +2,66 @@ namespace GumballMachine;
 
 public class GumballMachineLogic
 {
-    public const int SOLD_OUT = 0;
-    public const int NO_QUARTER = 1;
-    public const int HAS_QUARTER = 2;
-    public const int SOLD = 3;
+    public IState NoQuarterState  { get; }
+    public IState HasQuarterState { get; }
+    public IState SoldState       { get; }
+    public IState SoldOutState    { get; }
+    public IState WinnerState     { get; }
 
-    public int State { get; private set; } = SOLD_OUT;
-    public int Count { get; private set; }
+    public IState CurrentState  { get; private set; }
+    public int    Count         { get; private set; }
+    public bool   WonWithQuarter { get; private set; }
+
+    private static readonly Random _rng = new();
 
     public GumballMachineLogic(int count)
     {
-        Count = count;
-        if (count > 0)
-            State = NO_QUARTER;
+        NoQuarterState  = new NoQuarterState(this);
+        HasQuarterState = new HasQuarterState(this);
+        SoldState       = new SoldState(this);
+        SoldOutState    = new SoldOutState(this);
+        WinnerState     = new WinnerState(this);
+
+        Count        = count;
+        CurrentState = count > 0 ? NoQuarterState : SoldOutState;
     }
 
-    public string InsertQuarter()
-    {
-        if (State == HAS_QUARTER)
-            return "You can't insert another quarter";
-        if (State == NO_QUARTER)
-        {
-            State = HAS_QUARTER;
-            return "You inserted a quarter";
-        }
-        if (State == SOLD_OUT)
-            return "You can't insert a quarter, the machine is sold out";
-        return "Please wait, we're already giving you a gumball";
-    }
-
-    public string EjectQuarter()
-    {
-        if (State == HAS_QUARTER)
-        {
-            State = NO_QUARTER;
-            return "Quarter returned";
-        }
-        if (State == NO_QUARTER)
-            return "You haven't inserted a quarter";
-        if (State == SOLD)
-            return "Sorry, you already turned the crank";
-        return "You can't eject, the machine is sold out";
-    }
-
+    public string InsertQuarter() => CurrentState.InsertQuarter();
+    public string EjectQuarter()  => CurrentState.EjectQuarter();
     public string TurnCrank()
     {
-        if (State == SOLD)
-            return "Turning twice doesn't get you another gumball";
-        if (State == NO_QUARTER)
-            return "You turned but there's no quarter";
-        if (State == SOLD_OUT)
-            return "You turned, but there are no gumballs";
+        // Winner check is global — fires from NoQuarter (free turn) or HasQuarter (double gumball)
+        bool eligibleForWin = Count > 0 &&
+                              (CurrentState == NoQuarterState || CurrentState == HasQuarterState);
 
-        // HAS_QUARTER
-        State = SOLD;
-        return Dispense();
-    }
-
-    private string Dispense()
-    {
-        if (State == SOLD)
+        if (eligibleForWin && _rng.Next(10) == 0)
         {
-            Count--;
-            string msg = "A gumball comes rolling out the slot!";
-            State = Count > 0 ? NO_QUARTER : SOLD_OUT;
-            if (State == SOLD_OUT)
-                msg += "\nOops, out of gumballs!";
-            return msg;
+            WonWithQuarter = CurrentState == HasQuarterState;
+            SetState(WinnerState);
+            return "YOU'RE A WINNER! " + CurrentState.Dispense();
         }
-        return "No gumball dispensed";
+
+        return CurrentState.TurnCrank();
     }
 
-    public string GetStateName() => State switch
-    {
-        SOLD_OUT => "Sold Out",
-        NO_QUARTER => "No Quarter",
-        HAS_QUARTER => "Has Quarter",
-        SOLD => "Gumball Sold",
-        _ => "Unknown"
-    };
+    public void SetState(IState state) => CurrentState = state;
+
+    public void ReleaseBall() { if (Count > 0) Count--; }
 
     public void Refill(int amount)
     {
         Count += amount;
-        if (State == SOLD_OUT && Count > 0)
-            State = NO_QUARTER;
+        if (CurrentState == SoldOutState && Count > 0)
+            SetState(NoQuarterState);
+    }
+
+    public string GetStateName()
+    {
+        if (CurrentState == NoQuarterState)  return "No Quarter";
+        if (CurrentState == HasQuarterState) return "Has Quarter";
+        if (CurrentState == SoldState)       return "Gumball Sold";
+        if (CurrentState == SoldOutState)    return "Sold Out";
+        if (CurrentState == WinnerState)     return "Winner!";
+        return "Unknown";
     }
 }

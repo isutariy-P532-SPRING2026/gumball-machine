@@ -4,50 +4,65 @@ A WPF desktop application built with C# and .NET that simulates a Gumball Machin
 
 ## Overview
 
-The app models a real gumball machine with four states and transitions between them based on user actions.
+Each machine state is its own class implementing `IState`. The machine holds references to all state instances and delegates every action to `CurrentState` — no conditionals in the machine itself.
 
-### States
+## States
 
 | State | Description |
 |-------|-------------|
-| No Quarter | Waiting for a quarter to be inserted |
-| Has Quarter | Quarter inserted, ready to turn crank |
-| Gumball Sold | Crank turned, dispensing gumball |
-| Sold Out | No gumballs remaining |
+| `NoQuarterState` | Waiting for a quarter to be inserted |
+| `HasQuarterState` | Quarter inserted, ready to turn crank |
+| `SoldState` | Crank turned, dispensing 1 gumball |
+| `WinnerState` | 10% chance winner — dispenses 1 or 2 gumballs depending on context |
+| `SoldOutState` | No gumballs remaining, rejects all actions |
 
-### State Diagram
+## State Diagram
 
 ```
-                  inserts quarter
-  +-------------+---------------> +-------------+
-  |  No Quarter |                 | Has Quarter |
-  +-------------+ <-------------- +-------------+
-        ^          ejects quarter        |
-        |                               | turns crank
-        | gumballs > 0                  v
-        |                        +--------------+
-  +----------+  dispense gumball |  Gumball     |
-  | Sold Out | <---------------- |  Sold        |
-  +----------+                   +--------------+
-        ^
-        | gumballs = 0
-        +------(from No Quarter)
+                   inserts quarter
+  +--------------+----------------> +--------------+
+  |  NoQuarter   |                  | HasQuarter   |
+  +--------------+ <--------------- +--------------+
+        |           ejects quarter         |
+        |                                  | turns crank (no win)
+        | turns crank (wins, free turn)    v
+        |                           +--------------+
+        +-------> WinnerState <---- | HasQuarter   |  turns crank (wins)
+        |         (1 or 2 balls)
+        |
+        | turns crank (no win)
+        v
+  "You turned but there's no quarter"
+
+  SoldState / WinnerState
+        |
+        | gumballs > 0  -->  NoQuarterState
+        | gumballs = 0  -->  SoldOutState
 ```
 
-## Actions
+## Winner Logic
 
-- **Insert Quarter** — Insert a coin to move into Has Quarter state
-- **Eject Quarter** — Return the coin if not yet dispensing
-- **Turn Crank** — Dispense a gumball and return to No Quarter (or Sold Out)
-- **Refill** — Add gumballs back to the machine
+The winner check runs **globally in `GumballMachineLogic.TurnCrank()`**, before any state logic:
+
+- Eligible states: `NoQuarterState` or `HasQuarterState` (machine must have gumballs)
+- 10% chance (`Random.Next(10) == 0`)
+- If the customer **had a quarter** when they won → `WinnerState` dispenses **2 gumballs**
+- If the customer **had no quarter** when they won → `WinnerState` dispenses **1 free gumball**
+- If only **1 gumball** is left when winning with a quarter → dispenses 1, transitions to `SoldOutState`
 
 ## Project Structure
 
 ```
 GumballMachine/
-├── GumballMachineLogic.cs   # State machine logic
-├── MainWindow.xaml          # UI layout
-├── MainWindow.xaml.cs       # UI code-behind
+├── IState.cs                  # State interface
+├── NoQuarterState.cs
+├── HasQuarterState.cs
+├── SoldState.cs
+├── WinnerState.cs
+├── SoldOutState.cs
+├── GumballMachineLogic.cs     # Holds all states, delegates to CurrentState
+├── MainWindow.xaml            # UI layout
+├── MainWindow.xaml.cs         # UI code-behind
 ├── App.xaml
 ├── App.xaml.cs
 └── GumballMachine.csproj
