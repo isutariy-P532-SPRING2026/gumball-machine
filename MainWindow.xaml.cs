@@ -35,8 +35,7 @@ public partial class MainWindow : Window
     {
         if (int.TryParse(RefillBox.Text, out int amount) && amount > 0)
         {
-            _machine.Refill(amount);
-            Log($"Refilled {amount} gumball(s).");
+            Log(_machine.Refill(amount));
             UpdateStatus();
         }
         else

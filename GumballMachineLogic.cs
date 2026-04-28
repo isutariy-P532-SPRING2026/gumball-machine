@@ -82,10 +82,12 @@ public class GumballMachineLogic
         _ => "Unknown"
     };
 
-    public void Refill(int amount)
+    public string Refill(int amount)
     {
+        if (State != SOLD_OUT)
+            return "Machine doesn't need refilling yet";
         Count += amount;
-        if (State == SOLD_OUT && Count > 0)
-            State = NO_QUARTER;
+        State = NO_QUARTER;
+        return $"Machine refilled with {amount} gumball(s)!";
     }
 }

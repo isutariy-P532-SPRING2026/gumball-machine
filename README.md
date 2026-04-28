@@ -18,28 +18,35 @@ The app models a real gumball machine with four states and transitions between t
 ### State Diagram
 
 ```
-                  inserts quarter
-  +-------------+---------------> +-------------+
-  |  No Quarter |                 | Has Quarter |
-  +-------------+ <-------------- +-------------+
-        ^          ejects quarter        |
-        |                               | turns crank
-        | gumballs > 0                  v
-        |                        +--------------+
-  +----------+  dispense gumball |  Gumball     |
-  | Sold Out | <---------------- |  Sold        |
-  +----------+                   +--------------+
-        ^
-        | gumballs = 0
-        +------(from No Quarter)
+                      refill
+              +--------------------+
+              v                    |
+        +----------+               |
+        | Sold Out |               |
+        +----------+               |
+          ^     |                  |
+gumballs=0|     | gumballs > 0    |
+          |     v                  |
+          |  +-------------+  inserts quarter  +-------------+
+          |  |  No Quarter | ---------------> | Has Quarter |
+          |  +-------------+ <--------------- +-------------+
+          |                   ejects quarter        |
+          |                                         | turns crank
+          |                                         v
+          |                                  +--------------+
+          +--------------------------------- |  Gumball     |
+                   dispense gumball          |  Sold        |
+                                             +--------------+
 ```
+
+> **Refill** is only valid from the **Sold Out** state — matching the state diagram.
 
 ## Actions
 
 - **Insert Quarter** — Insert a coin to move into Has Quarter state
 - **Eject Quarter** — Return the coin if not yet dispensing
 - **Turn Crank** — Dispense a gumball and return to No Quarter (or Sold Out)
-- **Refill** — Add gumballs back to the machine
+- **Refill** — Add gumballs back; only allowed when the machine is Sold Out
 
 ## Project Structure
 
